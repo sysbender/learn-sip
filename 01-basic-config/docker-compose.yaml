@@ -1,0 +1,91 @@
+---
+version: "3.9"
+services:
+
+  sngrep:
+    build:
+      context: ./sngrep
+      dockerfile: Dockerfile
+    container_name: sngrep
+    privileged: true  
+    network_mode: host 
+    environment:
+      - TERM=xterm
+    cap_add:
+      - NET_ADMIN
+
+  kamailio-edge:
+    image: kamailio/kamailio-ci:5.4-alpine.debug
+    container_name: kamailio-edge
+    ports:
+      - "5090:5060"
+    volumes:
+      - ./kamailio-default/:/etc/kamailio
+    environment:
+      - KAM_SHM_MEM_SIZE=256
+    networks:
+      external:
+        ipv4_address: 192.168.254.2
+      internal:
+        ipv4_address: 172.16.254.2
+
+  b2bua_internal_01:
+    tty: true
+    container_name: b2bua_internal_01 
+    stdin_open: true
+    image: andrius/pjsua:latest
+    command: pjsua --null-audio --no-tcp --auto-answer=404
+    ports:
+      - "5091:5060"
+    networks:
+      internal:
+        ipv4_address: 172.16.254.100
+
+  b2bua_internal_02:
+    tty: true
+    container_name: b2bua_internal_02 
+    stdin_open: true
+    image: andrius/pjsua:latest
+    command: pjsua --null-audio --no-tcp --auto-answer=200
+    ports:
+      - "5092:5060"
+    networks:
+      internal:
+        ipv4_address: 172.16.254.101
+
+  b2bua_external_01:
+    tty: true
+    container_name: b2bua_external_01
+    stdin_open: true
+    image: andrius/pjsua:latest
+    command: pjsua --null-audio --no-tcp  --outbound sip:192.168.254.2;lr
+    ports:
+      - "5093:5060"
+    networks:
+      external:
+        ipv4_address: 192.168.254.100
+
+  b2bua_external_02:
+    tty: true
+    container_name: b2bua_external_02
+    stdin_open: true
+    image: andrius/pjsua:latest
+    command: pjsua --null-audio --no-tcp --auto-answer=200
+    networks:
+      external:
+        ipv4_address: 192.168.254.101
+
+
+networks:
+    external:
+        # use the bridge driver, but enable IPv6
+        ipam:
+            config:
+                - subnet: 192.168.254.0/24
+                  gateway: 192.168.254.1
+    internal:
+        # use a custom driver, with no options
+        ipam:
+            config:
+                - subnet: 172.16.254.0/24
+                  gateway: 172.16.254.1
